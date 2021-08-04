@@ -1,0 +1,195 @@
+.settings-wrapper,
+.settings-overlay {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    left: 0;
+    top: 0;
+    z-index: $modal-z-index;
+}
+
+.settings-overlay {
+    position: fixed;
+}
+
+.settings-window-wrapper {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    z-index: $modal-z-index;
+}
+
+.settings-window {
+    width: 100%;
+    background-color: $light;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+
+    @media (max-width: map-get($grid-breakpoints, 'sm') - 1) {
+        height: 100% !important;
+    }
+
+    @include dark-theme {
+        background-color: darken($dark, 10%);
+        color: $gray-100;
+    }
+
+    .root > .panel-no-frame:not(.errors) > & {
+        background-color: transparent;
+    }
+
+    &.show,
+    &.v-enter-active {
+        animation: mobile-panel-in 0.3s ease-in forwards;
+    }
+
+    &.v-leave-active {
+        animation: mobile-panel-out 0.3s ease-out forwards;
+    }
+
+    // .terminal {
+    //     max-width: 100%;
+    //     overflow-x: auto;
+    //     -webkit-overflow-scrolling: touch;
+    // }
+}
+
+@media (min-width: map-get($grid-breakpoints, 'sm')) {
+    .root :not(.panel-no-frame) > .settings-window {
+        width: 80%;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+        max-height: 90%;
+        border: darken($light, 20%) 1px solid;
+        border-top-width: 0;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+
+        @include dark-theme {
+            border-color: darken($dark, 20%);
+        }
+
+        &.show,
+        &.v-enter-active {
+            animation: panel-in 0.2s ease-in forwards;
+        }
+
+        &.v-leave-active {
+            animation: panel-out 0.2s ease-out forwards;
+        }
+    }
+
+    .root .home-settings:not(.panel-no-frame) .settings-window,
+    .root .accessory-settings:not(.panel-no-frame) .settings-window {
+        max-width: 626px;
+    }
+
+    .root .home-settings:not(.panel-no-frame).wide .settings-window {
+        max-width: 900px;
+    }
+}
+
+.modal-window-container {
+    .modal-window-loading,
+    .modal-window-error {
+        margin-bottom: 1.2rem;
+        padding: 1.2rem 1.5rem 0;
+
+        @include dark-theme {
+            color: $gray-500;
+        }
+    }
+
+    .modal-window-error code:first-child {
+        color: $danger;
+    }
+}
+
+.settings-container {
+    padding: 1rem;
+
+    @media (max-width: map-get($grid-breakpoints, 'sm') - 1) {
+        min-height: calc(100vh + 2px);
+        padding-bottom: calc(1rem + 78px);
+    }
+
+    @media (min-width: map-get($grid-breakpoints, 'sm')) {
+        padding: 2rem;
+    }
+}
+
+.list-group-group {
+    margin-bottom: 1rem;
+
+    > .list-group-group-item > h4 {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        margin-bottom: 0;
+        padding-top: 1rem;
+        padding-bottom: 0.5rem;
+        z-index: 2;
+    }
+    > .list-group-group-item:first-child > h4 {
+        margin-top: -1rem;
+    }
+
+    > * + * > .list-group:first-child {
+        margin-top: 1rem;
+    }
+
+    .settings-window & > .list-group-group-item > h4 {
+        background-color: $light;
+
+        @include dark-theme {
+            background-color: darken($dark, 10%);
+        }
+    }
+}
+
+@keyframes mobile-panel-in {
+    0% {
+        margin-top: 100vh;
+    }
+
+    100% {
+        margin-top: 0;
+    }
+}
+
+@keyframes mobile-panel-out {
+    0% {
+        margin-top: 0%;
+    }
+
+    100% {
+        margin-top: 100vh;
+    }
+}
+
+@keyframes panel-in {
+    100% {
+        margin-top: 0;
+    }
+}
+
+@keyframes panel-out {
+    0% {
+        margin-top: 0;
+    }
+}
+
+.d-sm-flex > .server-status {
+    margin-bottom: 1rem;
+
+    @media screen and (min-width: map-get($grid-breakpoints, 'sm')) {
+        width: 250px;
+        flex-shrink: 0;
+        margin-right: 1rem;
+        margin-bottom: 0;
+    }
+    @media screen and (min-width: map-get($grid-breakpoints, 'lg')) {
+        width: 400px;
+        margin-right: 1.5rem;
+    }
+}

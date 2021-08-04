@@ -1,0 +1,91 @@
+.accessory-details-lightbulb {
+    .accessory-details-lightbulb-sections {
+        display: flex;
+        margin: 1em -2em 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .accessory-details-lightbulb-sections-scroll-wrapper {
+        display: flex;
+        flex-direction: row;
+        padding: 0 2em;
+        min-width: 100%;
+    }
+
+    .accessory-details-lightbulb-power,
+    .accessory-details-lightbulb-colour {
+        width: 100%;
+        min-width: 300px;
+        margin: 0 2em;
+
+        @media (max-width: 400px) {
+            min-width: calc(100vw - 4em);
+
+            &:first-child {
+                margin-left: 0;
+            }
+            &:last-child {
+                margin-right: 0;
+            }
+        }
+    }
+
+    .accessory-details-lightbulb-power {
+        background-color: transparentize($gray-800, 0.5);
+        border: 1px solid transparentize($gray-800, 0.6);
+        border-radius: 3px;
+        padding: 1em;
+
+        @supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
+            background-color: transparentize($gray-800, 0.7);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+
+        p {
+            margin: 0;
+        }
+
+        @media (min-width: 400px) {
+            input {
+                max-width: 300px;
+                margin: 0 auto;
+            }
+        }
+    }
+
+    .vc-swatches,
+    .vc-chrome {
+        border-radius: 3px;
+
+        @include dark-theme {
+            background-color: $dark;
+        }
+    }
+
+    .vc-swatches {
+        width: auto;
+    }
+
+    .vc-chrome {
+        height: 100%;
+        margin-left: 2em;
+
+        .vc-chrome-saturation-wrap {
+            flex: 1;
+        }
+
+        .vc-saturation-circle {
+            box-shadow: 0 0 0 1.5px $dark, inset 0 0 1px 1px rgba(0, 0, 0, 0.3), 0 0 1px 2px rgba(0, 0, 0, 0.4);
+        }
+
+        .vc-chrome-body {
+            @include border-bottom-radius(3px);
+
+            @include dark-theme {
+                background-color: $dark;
+            }
+        }
+    }
+}

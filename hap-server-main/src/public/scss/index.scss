@@ -1,0 +1,325 @@
+@import '../../../node_modules/bootstrap/scss/bootstrap';
+@import '../../../node_modules/xterm/src/xterm';
+
+@mixin dark-theme($at-root: false) {
+    @media (prefers-color-scheme: dark) {
+        html:not(.theme-light) #{if($at-root, '', '&')} {
+            @content;
+        }
+    }
+
+    html.theme-dark #{if($at-root, '', '&')} {
+        @content;
+    }
+}
+
+@include dark-theme(true) {
+    @import 'dark';
+}
+
+$background-z-index: 0;
+$main-z-index: 100;
+$header-z-index: 200;
+$modal-z-index: 300;
+$connecting-modal-z-index: 400;
+$errors-modal-z-index: 500;
+
+.custom-select {
+    -webkit-appearance: none;
+}
+
+.table-responsive {
+    margin-bottom: 1rem;
+
+    > .table {
+        margin-bottom: 0;
+    }
+}
+
+.show-invalid-fields {
+    input:invalid {
+        @extend .is-invalid;
+    }
+}
+
+html,
+body,
+.root {
+    width: 100%;
+    height: 100vh;
+
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: default;
+}
+
+html {
+    overflow-y: scroll;
+}
+
+.selectable {
+    -moz-user-select: text;
+    -webkit-user-select: text;
+    user-select: text;
+    cursor: auto;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+body,
+.background {
+    background-color: $gray-700;
+    background-image: url('../../../assets/default-wallpaper.jpg');
+    background-attachment: fixed;
+    background-size: cover;
+    background-position: center;
+
+    z-index: $background-z-index;
+
+    @include dark-theme {
+        background-color: $dark;
+    }
+}
+.background.has-image {
+    filter: brightness(0.8);
+}
+
+html.modal-window body,
+html.modal-window .background,
+.root > .background.settings {
+    background-color: $light;
+    background-image: none;
+}
+
+// Can't use @include dark-theme here as this selector references the document root
+@media (prefers-color-scheme: dark) {
+    html:not(.theme-light).modal-window body,
+    html:not(.theme-light).modal-window .background,
+    html:not(.theme-light) .root > .background.settings {
+        background-color: darken($dark, 10%);
+    }
+}
+
+html.theme-dark.modal-window body,
+html.theme-dark.modal-window .background
+html.theme-dark .root > .background.settings {
+    background-color: darken($dark, 10%);
+}
+
+.background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    background-attachment: scroll;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 1s;
+}
+.fade-enter {
+    opacity: 0;
+}
+
+.root {
+    padding-top: 57px;
+}
+
+.header {
+    margin: 0 0 1rem;
+    padding: 1rem 0;
+    display: flex;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    transition: background-color 0.6s ease, border-color 0.6s ease;
+    border-bottom: rgba(0, 0, 0, 0) 1px solid;
+    z-index: $header-z-index;
+
+    .scrolled & {
+        background-color: rgba(0, 0, 0, 0.6);
+        border-color: rgba(0, 0, 0, 0.8);
+
+        @media (prefers-reduced-transparency: reduce) {
+            background-color: $dark;
+        }
+
+        @supports (backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px)) {
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+
+            @media (prefers-reduced-transparency: reduce) {
+                -webkit-backdrop-filter: none;
+                backdrop-filter: none;
+            }
+        }
+    }
+
+    .left,
+    .right {
+        flex: 1 1 10%;
+        margin: -4px 1rem;
+    }
+
+    .right {
+        text-align: right;
+    }
+
+    .dropdown-menu {
+        max-height: calc(100vh - 50px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overflow-scrolling: touch;
+    }
+
+    .btn {
+        color: $light;
+        margin-top: -2px;
+        margin-bottom: -2px;
+    }
+
+    h1 {
+        flex: 1 0 auto;
+        margin: 0 auto;
+        font-size: 1rem;
+        color: $light;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+
+        .scrolled & {
+            opacity: 1;
+        }
+    }
+}
+
+.main {
+    position: relative;
+    z-index: $main-z-index;
+
+    &.has-open-modals {
+        overflow: hidden;
+    }
+
+    h1,
+    h2,
+    h3 {
+        margin: 1rem;
+    }
+
+    h1,
+    h2,
+    h3,
+    .section p,
+    .btn-default {
+        color: $light;
+    }
+}
+
+.root > .panel-no-frame:not(.errors) > .settings-window {
+    position: relative;
+    z-index: $main-z-index;
+}
+
+@import 'layout';
+@import 'service';
+@import 'scene';
+@import 'settings';
+@import 'user-management';
+@import 'accessory-details';
+@import 'accessory-details/index';
+@import 'accessory-settings/index';
+@import 'automations';
+
+@supports not (-webkit-backdrop-filter: blur(2px)) {
+    .background.has-image,
+    .header > *,
+    .main {
+        transition: filter 0.1s ease;
+    }
+
+    .root.has-accessory-details-open {
+        .background.has-image {
+            filter: brightness(0.8) blur(2px);
+        }
+
+        .header > *,
+        .main {
+            filter: blur(10px);
+        }
+    }
+}
+
+.connecting {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: $connecting-modal-z-index;
+
+    background-color: rgba(0, 0, 0, 0.5);
+
+    @media (prefers-reduced-transparency: reduce) {
+        background-color: $gray-900;
+    }
+
+    @supports (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px)) {
+        background-color: rgba(0, 0, 0, 0.15);
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+
+        @media (prefers-reduced-transparency: reduce) {
+            background-color: $gray-900;
+        }
+    }
+
+    color: #ffffff;
+
+    display: flex;
+    flex-direction: column;
+
+    p {
+        text-align: center;
+        margin: auto;
+    }
+}
+
+.errors {
+    position: fixed;
+    z-index: $errors-modal-z-index;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-height: 100%;
+
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+
+    border-bottom: darken($light, 20%) 1px solid;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+
+    @include dark-theme {
+        border-color: darken($dark, 20%);
+    }
+
+    .error {
+        margin-bottom: 1.2rem;
+        padding: 1.2rem 1.5rem 0;
+
+        @include dark-theme {
+            color: $gray-500;
+        }
+
+        code:first-child {
+            color: $danger;
+        }
+    }
+}

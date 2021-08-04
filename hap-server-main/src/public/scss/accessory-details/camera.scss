@@ -1,0 +1,36 @@
+.accessory-details-camera {
+    .accessory-details-scroll-wrapper {
+        padding: 1rem;
+    }
+
+    .accessory-details-footer {
+        margin-bottom: -1rem;
+        padding-bottom: 1rem;
+    }
+
+    .service-wrapper {
+        margin: 0;
+    }
+
+    @media (orientation: landscape) {
+        .accessory-details-container {
+            flex-direction: row;
+        }
+
+        .accessory-details-footer {
+            margin-top: 1em;
+        }
+
+        .service-wrapper {
+            width: auto;
+        }
+
+        .service {
+            .camera-image-wrapper,
+            .camera-error-wrapper {
+                width: calc(((100vh - 7.5rem - -3px) / 9) * 16);
+                height: calc(100vh - 7.5rem - -3px);
+            }
+        }
+    }
+}

@@ -1,0 +1,320 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:14
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+    paths:
+        - node_modules/
+
+include:
+    - template: Dependency-Scanning.gitlab-ci.yml
+    - template: SAST.gitlab-ci.yml
+
+variables:
+    DS_DISABLE_DIND: "true"
+    SAST_DISABLE_DIND: "true"
+
+retire-js-dependency_scanning:
+    cache:
+        policy: pull
+    needs: []
+    before_script:
+        - npm --color="always" install @hap-server/authenticate-pam
+
+sast:
+    cache:
+        key: none
+    needs: []
+    before_script:
+        - rm -rf node_modules/ || true
+        - rm -rf dist/ || true
+        - rm -rf release/ || true
+        - rm types/node_modules/@hap-server/types || true
+
+build:
+    stage: build
+    script:
+        # Get the last tagged version from the commit history
+        - "LAST_VERSION=`node -e \"console.log((process.argv[1].match(/^tag: v(\\d+\\.\\d+\\.\\d+)$/m) || ['', ''])[1])\" \"\\`git log --tags --no-walk --pretty=\"format:%D\"\\`\"`"
+        # If that fails, use the version in the package.json
+        - PACKAGE_JSON_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync('package.json', 'utf-8')).version)"`
+        - if [ "$LAST_VERSION" = "" ]; then LAST_VERSION="$PACKAGE_JSON_VERSION"; fi
+        # Get the revision number (the number of commits since that version)
+        - REVISION=`expr $(git rev-list --count HEAD) - $(git rev-list --count v$LAST_VERSION)`; if [ "$?" != "0" ]; then REVISION="0"; fi
+        # If the last git tag doesn't match the version in the package.json, don't change the version
+        - if [ "$LAST_VERSION" != "$PACKAGE_JSON_VERSION" ]; then LAST_VERSION="$PACKAGE_JSON_VERSION"; REVISION="0"; fi
+        # If there's no commits since that version, use that version number, otherwise add a -next prerelease tag and
+        # the short commit hash
+        - export VERSION=`if [ "$CI_COMMIT_BRANCH" = "main" -a "$REVISION" != "0" ]; then echo "$LAST_VERSION-next.\`expr "$REVISION" - 1\`+sha.\`echo $CI_COMMIT_SHA | head -c 7\`"; else echo "$LAST_VERSION"; fi`
+        - echo "Building version $VERSION (from $LAST_VERSION, revision $REVISION, commit $CI_COMMIT_SHA)"
+
+        - npm --color="always" install
+        - npx gulp --color build
+        - npx gulp --color build-release
+        - npx gulp --color build-api-types build-ui-api-types
+        - npx tsc --project example-plugins/fake-accessories
+        - npx tsc --project example-plugins/virtual-switches
+
+        - cd release/hap-server
+
+        # Update the package.json
+        - export PACKAGE_JSON_NAME=`node -e "console.log(JSON.parse(fs.readFileSync('package.json', 'utf-8')).name)"`
+        - "[ \"$CI_COMMIT_BRANCH\" != \"main\" ] || node -e \"fs.writeFileSync('package.json', JSON.stringify((json => {json.version = process.env.VERSION; return json;})(JSON.parse(fs.readFileSync('package.json', 'utf-8'))), null, 4) + '\\n', 'utf-8')\""
+
+        - PACKAGE_PATH=`npm --color="always" pack`
+        - mv $PACKAGE_PATH ../../hap-server-release.tgz
+
+        - cd ../api-types
+
+        # Update the package.json
+        - "[ \"$CI_COMMIT_BRANCH\" != \"main\" ] || node -e \"fs.writeFileSync('package.json', JSON.stringify((json => {json.version = process.env.VERSION; json.dependencies[process.env.PACKAGE_JSON_NAME] = process.env.VERSION; return json;})(JSON.parse(fs.readFileSync('package.json', 'utf-8'))), null, 4) + '\\n', 'utf-8')\""
+
+        - PACKAGE_PATH=`npm --color="always" pack`
+        - mv $PACKAGE_PATH ../../hap-server-api-types-release.tgz
+
+        - cd ../ui-api-types
+
+        # Update the package.json
+        - "[ \"$CI_COMMIT_BRANCH\" != \"main\" ] || node -e \"fs.writeFileSync('package.json', JSON.stringify((json => {json.version = process.env.VERSION; json.dependencies[process.env.PACKAGE_JSON_NAME] = process.env.VERSION; return json;})(JSON.parse(fs.readFileSync('package.json', 'utf-8'))), null, 4) + '\\n', 'utf-8')\""
+
+        - PACKAGE_PATH=`npm --color="always" pack`
+        - mv $PACKAGE_PATH ../../hap-server-ui-api-types-release.tgz
+    artifacts:
+        paths:
+            - dist
+            - release
+            - example-plugins/*/dist
+            - hap-server-release.tgz
+            - hap-server-api-types-release.tgz
+            - hap-server-ui-api-types-release.tgz
+    needs: []
+    only:
+        changes:
+            - .gitlab-ci.yml
+            - package-lock.json
+            - gulpfile.ts
+            - .babelrc
+            - src/**/*
+            - example-plugins/**/*
+    except:
+        variables:
+            - $NPM_AUDIT_SCHEDULE_SKIP_BUILD
+
+.test:
+    stage: test
+    image: node:$NODE_VERSION
+    script:
+        - npm --color="always" install
+        - npm run test
+    only:
+        changes:
+            - .gitlab-ci.yml
+            - package-lock.json
+            - src/**/*.js
+            - src/**/*.ts
+            - src/**/*.vue
+            - example-plugins/**/*.js
+            - example-plugins/**/*.ts
+    except:
+        variables:
+            - $NPM_AUDIT_SCHEDULE_SKIP_BUILD
+    needs:
+        - build
+    cache:
+        key: node-v$NODE_VERSION
+        paths:
+            - node_modules/
+    parallel:
+        matrix:
+            - NODE_VERSION: [10, 12, 14]
+
+lint:
+    stage: test
+    script:
+        # Run eslint for JS and Vue files separately
+        - npm --color="always" install
+        - npx eslint --ext .js --color example-plugins --ignore-pattern dist ; JS_EXIT_CODE="$?"
+        - npx eslint --ext .ts --color src example-plugins --ignore-pattern dist ; TS_EXIT_CODE="$?"
+        - npx eslint --ext .vue --color src ; VUE_EXIT_CODE="$?"
+        - FORCE_COLOR=1 npx sass-lint -v ; SASS_EXIT_CODE="$?"
+        - sh -c "exit `expr $JS_EXIT_CODE + $TS_EXIT_CODE + $VUE_EXIT_CODE + $SASS_EXIT_CODE`"
+    needs: []
+    only:
+        changes:
+            - .gitlab-ci.yml
+            - package-lock.json
+            - .eslintrc.js
+            - .sass-lint.yml
+            - src/**/*.js
+            - src/**/*.ts
+            - src/**/*.vue
+            - src/**/*.scss
+            - example-plugins/**/*.js
+            - example-plugins/**/*.ts
+    except:
+        variables:
+            - $NPM_AUDIT_SCHEDULE_SKIP_BUILD
+    cache:
+        paths:
+            - node_modules/
+        policy: pull
+
+audit:
+    stage: test
+    script:
+        - npm audit --json > npm-audit.json || true
+        - npm --color="always" audit
+    artifacts:
+        paths:
+            - npm-audit.json
+        when: always
+    needs: []
+    only:
+        changes:
+            - .gitlab-ci.yml
+            - package-lock.json
+    cache:
+        paths:
+            - node_modules/
+        policy: pull
+    when: always
+    allow_failure: true
+
+publish-npm:
+    stage: deploy
+    script:
+        - cd release/hap-server
+        - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+        - npm --color="always" publish
+
+        - cd ../api-types
+        - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+        - npm --color="always" publish
+
+        - cd ../ui-api-types
+        - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+        - npm --color="always" publish
+    dependencies:
+        - build
+    only:
+        refs:
+            - /^v.*$/
+        variables:
+            - $NPM_TOKEN
+    except:
+        - branches
+    cache:
+        paths:
+            - node_modules/
+        policy: pull
+
+publish-github:
+    stage: deploy
+    script:
+        - cd release/hap-server
+        - echo "//npm.pkg.github.com/:_authToken=${GITHUB_NPM_TOKEN}" > .npmrc
+        - npm --color="always" --registry=https://npm.pkg.github.com/ publish
+
+        - cd ../api-types
+        - echo "//npm.pkg.github.com/:_authToken=${GITHUB_NPM_TOKEN}" > .npmrc
+        - npm --color="always" --registry=https://npm.pkg.github.com/ publish
+
+        - cd ../ui-api-types
+        - echo "//npm.pkg.github.com/:_authToken=${GITHUB_NPM_TOKEN}" > .npmrc
+        - npm --color="always" --registry=https://npm.pkg.github.com/ publish
+    dependencies:
+        - build
+    only:
+        refs:
+            - /^v.*$/
+        variables:
+            - $GITHUB_NPM_TOKEN
+    except:
+        - branches
+    cache:
+        paths:
+            - node_modules/
+        policy: pull
+
+publish-gitlab:
+    stage: deploy
+    script:
+        - cd release/hap-server
+        - echo "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" | sed s/^https:// > .npmrc
+        - npm --color="always" --registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/ publish
+
+        - cd ../api-types
+        - cp ../hap-server/.npmrc .
+        - npm --color="always" --registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/ publish
+
+        - cd ../ui-api-types
+        - cp ../hap-server/.npmrc .
+        - npm --color="always" --registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/ publish
+
+        - cd ../..
+
+        - PACKAGE_NAME=`node -e "console.log(JSON.parse(fs.readFileSync('release/hap-server/package.json', 'utf-8')).name)"`
+        - API_TYPES_PACKAGE_NAME=`node -e "console.log(JSON.parse(fs.readFileSync('release/api-types/package.json', 'utf-8')).name)"`
+        - UI_API_TYPES_PACKAGE_NAME=`node -e "console.log(JSON.parse(fs.readFileSync('release/ui-api-types/package.json', 'utf-8')).name)"`
+        - PACKAGE_VERSION=`node -e "console.log(JSON.parse(fs.readFileSync('release/hap-server/package.json', 'utf-8')).version)"`
+
+        # - ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/${PACKAGE_NAME}/-/${PACKAGE_NAME}-${PACKAGE_VERSION}.tgz
+
+        - |
+            curl --header 'Content-Type: application/json' --header "PRIVATE-TOKEN: ${CI_JOB_TOKEN}" \
+            --data '{ "tag_name": "${CI_COMMIT_TAG}", "assets": { "links": [{ "name": "hap-server-release.tgz", "url": "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/${PACKAGE_NAME}/-/${PACKAGE_NAME}-${PACKAGE_VERSION}.tgz", "link_type": "package" }, { "name": "hap-server-api-types-release.tgz", "url": "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/${API_TYPES_PACKAGE_NAME}/-/${API_TYPES_PACKAGE_NAME}-${PACKAGE_VERSION}.tgz", "link_type": "package" }, { "name": "hap-server-ui-api-types-release.tgz", "url": "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/${UI_API_TYPES_PACKAGE_NAME}/-/${UI_API_TYPES_PACKAGE_NAME}-${PACKAGE_VERSION}.tgz", "link_type": "package" }] } }' \
+            --request POST ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases
+    dependencies:
+        - build
+    only:
+        refs:
+            - /^v.*$/
+        variables:
+            - $GITLAB_NPM_PUBLISH
+    except:
+        - branches
+    cache:
+        paths:
+            - node_modules/
+        policy: pull
+
+publish-next-gitlab:
+    stage: deploy
+    script:
+        - cd release/hap-server
+
+        - node -e "if (JSON.parse(fs.readFileSync('package.json', 'utf-8')).version.match(/^\d+\.\d+\.\d+-next\.\d+\+sha\.[0-9a-f]{7}$/)) process.exit(0); else process.exit(1);"; if [ "$?" != "0" ]; then echo "Build does not have a -next prerelease tag."; exit 0; fi
+
+        - echo "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" | sed s/^https:// > .npmrc
+        - npm --color="always" --registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/ publish --tag next
+
+        - cd ../api-types
+        - cp ../hap-server/.npmrc .
+        - npm --color="always" --registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/ publish --tag next
+
+        - cd ../ui-api-types
+        - cp ../hap-server/.npmrc .
+        - npm --color="always" --registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/ publish --tag next
+    dependencies:
+        - build
+    only:
+        refs:
+            - main
+        variables:
+            - $GITLAB_NPM_PUBLISH_NEXT
+        changes:
+            - .gitlab-ci.yml
+            - package-lock.json
+            - gulpfile.ts
+            - .babelrc
+            - src/**/*
+    except:
+        - tags
+        - schedules
+    cache:
+        paths:
+            - node_modules/
+        policy: pull

@@ -1,0 +1,119 @@
+.automations .main {
+    .section {
+        min-height: 0;
+    }
+}
+
+.automation-groups-list {
+    .automation-group {
+        margin-bottom: 2rem;
+
+        h2 {
+            font-size: 1.7rem;
+            color: #ffffff;
+        }
+    }
+}
+
+.automations-list {
+    .automation-row {
+        background-color: transparentize($gray-600, 0.5);
+        border-bottom: 1px solid $gray-800;
+        color: #ffffff;
+        height: 100px;
+        box-sizing: content-box;
+
+        @include dark-theme {
+            background-color: transparentize(darken($dark, 20%), 0.5);
+        }
+
+        &:hover {
+            background-color: transparentize($gray-600, 0.2);
+
+            @include dark-theme {
+                background-color: transparentize(darken($dark, 20%), 0.2);
+            }
+        }
+
+        &:first-child {
+            border-top: 1px solid $gray-800;
+        }
+
+        > .progress {
+            height: 100px;
+            margin-bottom: -100px;
+            background-color: transparent;
+            border-radius: 0;
+
+            .progress-bar {
+                background-color: $gray-600;
+
+                @include dark-theme {
+                    background-color: darken($dark, 20%);
+                }
+            }
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            margin-left: 0;
+            margin-right: 0;
+        }
+
+        .automation-row-contents {
+            padding: 1rem 1rem 0;
+            font-size: 0.9rem;
+
+            h3 {
+                margin-top: 0;
+            }
+        }
+    }
+}
+
+.automation-settings,
+.scene-settings {
+    :not(.panel-no-frame) > .settings-window {
+        max-width: 900px;
+    }
+
+    .automation-triggers,
+    .automation-conditions,
+    .automation-actions {
+        min-height: 200px;
+    }
+}
+
+.automation-trigger,
+.automation-condition,
+.automation-action,
+.automation-json-editor {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #dee2e6;
+
+    @include dark-theme {
+        border-color: darken($dark, 20%);
+    }
+
+    .automation-trigger-header,
+    .automation-condition-header,
+    .automation-action-header,
+    .automation-json-editor-header {
+        display: flex;
+        margin-bottom: 1rem;
+
+        h4 {
+            font-size: 1.1rem;
+        }
+    }
+
+    & & {
+        padding-left: 1rem;
+        border-left: 1px solid #dee2e6;
+
+        @include dark-theme {
+            border-color: darken($dark, 20%);
+        }
+    }
+}
